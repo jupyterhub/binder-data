@@ -16,7 +16,7 @@ def download_data():
     # Select files we want to update with
     proc_data = pd.read_json('./data/proc/data.json', orient='split')
     proc_data.loc[:, 'date'] = pd.to_datetime(proc_data['date'])
-    date_start = pd.to_datetime(data['date'].unique()[-2])  # Overlap by a day to make sure we don't miss data
+    date_start = pd.to_datetime(proc_data['date'].unique()[-2])  # Overlap by a day to make sure we don't miss data
     print('...with {} days'.format((pd.datetime.today() - date_start).days))
     date_start = '{:%Y/%m/%d}'.format(date_start)
     use_data = data.query('date >= @date_start')
