@@ -14,7 +14,8 @@ def download_data():
     data.loc[:, 'date'] = pd.to_datetime(data['date'])
 
     # Select files we want to update with
-    proc_data = pd.read_json('./data/proc/data.json', orient='split')
+    this_dir = os.path.dirname(__file__)
+    proc_data = pd.read_json(os.path.join(this_dir, 'data', 'proc', 'data.json'), orient='split')
     proc_data.loc[:, 'date'] = pd.to_datetime(proc_data['date'])
     date_start = pd.to_datetime(proc_data['date'].unique()[-2])  # Overlap by a day to make sure we don't miss data
     print('...with {} days'.format((pd.datetime.today() - date_start).days))
@@ -24,7 +25,7 @@ def download_data():
     # Download the files
     for ipath in use_data['path'].values:
         billing = subprocess.check_output(['gsutil', 'cp', ipath, 'data/raw'])
-    
+
 def munge_data():
     print('Munging data...')
     # Pull raw data into one dataframe
