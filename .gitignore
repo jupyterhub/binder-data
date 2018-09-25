@@ -102,3 +102,4 @@ ENV/
 
 # Ignore raw data
 billing/data/raw/*
+ga/data/ga_raw.csv
