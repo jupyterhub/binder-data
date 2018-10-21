@@ -12,7 +12,7 @@ This folder contains data about traffic for the service running at `mybinder.org
 5. Run the `summarize-data.ipynb` notebook to produce the file to commit to
    this repository.
 6. Commit the resulting `page-20180820-20180918.csv` and
-   `repo-20180820-20180918.csv` files that cover the 30 period you extracted.
+   `repo-20180820-20180918.csv` files that cover the 30 day period you extracted.
 
 ## How to update the visits per day data
 
