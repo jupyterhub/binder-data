@@ -2,6 +2,9 @@ import subprocess
 import pandas as pd
 from glob import glob
 import json
+import os.path as op
+
+this_dir = op.dirname(__file__)
 
 def download_data():
     print('Updating data...')
@@ -14,8 +17,7 @@ def download_data():
     data.loc[:, 'date'] = pd.to_datetime(data['date'])
 
     # Select files we want to update with
-    this_dir = os.path.dirname(__file__)
-    proc_data = pd.read_json(os.path.join(this_dir, 'data', 'proc', 'data.json'), orient='split')
+    proc_data = pd.read_json(op.join(this_dir, 'data', 'proc', 'data.json'), orient='split')
     proc_data.loc[:, 'date'] = pd.to_datetime(proc_data['date'])
     date_start = pd.to_datetime(proc_data['date'].unique()[-2])  # Overlap by a day to make sure we don't miss data
     print('...with {} days'.format((pd.datetime.today() - date_start).days))
@@ -24,12 +26,12 @@ def download_data():
 
     # Download the files
     for ipath in use_data['path'].values:
-        billing = subprocess.check_output(['gsutil', 'cp', ipath, 'data/raw'])
+        billing = subprocess.check_output(['gsutil', 'cp', ipath, op.join(this_dir, 'data', 'raw')])
 
 def munge_data():
     print('Munging data...')
     # Pull raw data into one dataframe
-    files = glob('./data/raw/report*')
+    files = glob(op.join(this_dir, 'data', 'raw', 'report*'))
     data = []
     for this_file in files:
         data.append(pd.read_csv(this_file))
@@ -55,7 +57,7 @@ def munge_data():
     data.loc[:, 'line_item'] = data['line_item'].map(lambda a: '/'.join(a.split('/')[1:]))
 
     # Save to JSON
-    data.to_json("data/proc/data.json", orient='split')
+    data.to_json(op.join(this_dir, "data", "proc", "data.json"), orient='split')
 
 if __name__ == '__main__':
     download_data()
