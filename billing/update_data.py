@@ -50,14 +50,21 @@ def munge_data():
     use_projects = ['binder-prod', 'binder-staging']
     data = data.rename(columns=keep_cols)[list(keep_cols.values())]
     data = data.query("project_id in @use_projects")
+    
+    # Read in the data we've got so we can append to it
+    all_data = pd.read_json('./data/proc/data.json', orient='split')
+
 
     # Pulling metadata
     data.loc[:, 'line_item'] = data['line_item'].str.replace('com.google.cloud/services/', '')
     data.loc[:, 'category'] = data['line_item'].map(lambda a: a.split('/')[0])
     data.loc[:, 'line_item'] = data['line_item'].map(lambda a: '/'.join(a.split('/')[1:]))
 
+    # Combine the two
+    all_data = pd.concat([data, all_data]).sort_values('date')
+
     # Save to JSON
-    data.to_json(op.join(this_dir, "data", "proc", "data.json"), orient='split')
+    all_data.to_json(op.join(this_dir, "data", "proc", "data.json"), orient='split')
 
 if __name__ == '__main__':
     download_data()
