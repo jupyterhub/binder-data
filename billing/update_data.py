@@ -64,6 +64,7 @@ def munge_data():
     all_data = pd.concat([data, all_data]).sort_values('date')
 
     # Save to JSON
+    all_data = all_data.drop_duplicates()
     all_data.to_json(op.join(this_dir, "data", "proc", "data.json"), orient='split')
 
 if __name__ == '__main__':
