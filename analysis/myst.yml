@@ -14,7 +14,6 @@ site:
     logo: https://mybinder.org/static/logo.svg
     logo_text: MyBinder Analytics Report
     hide_toc: true
-    hide_navigation: true
     hide_outline: true
   actions:
     - title: View on GitHub
