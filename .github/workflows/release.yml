@@ -43,4 +43,3 @@ jobs:
             This release contains comprehensive MyBinder launch analytics data in parquet format.
             The data is updated weekly with any missing dates from the archive.
           prerelease: false
-          make_latest: true
