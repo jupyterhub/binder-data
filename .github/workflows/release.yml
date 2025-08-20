@@ -28,16 +28,19 @@ jobs:
         run: |
           uv pip install -r requirements.txt --system
 
-      - name: Scrape Binder analytics data (2 years)
-        run: python launches/scrape_binder_analytics.py --days 730
+      - name: Scrape Binder analytics data
+        run: python launches/scrape_binder_analytics.py
 
-      - name: Get current date for release name
-        id: get_date
-        run: echo "RELEASE_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
-      - name: Create Release and Upload Files
+      - name: Update Release with Latest Data
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ env.RELEASE_DATE }}
+          name: MyBinder Analytics Dataset
           tag_name: latest
           files: _build/*
+          body: |
+            Latest MyBinder analytics dataset updated on $(date +'%Y-%m-%d %H:%M UTC')
+            
+            This release contains comprehensive MyBinder launch analytics data in parquet format.
+            The data is updated weekly with any missing dates from the archive.
+          prerelease: false
+          make_latest: true

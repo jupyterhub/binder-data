@@ -29,21 +29,6 @@ import sys
 import argparse
 
 # %%
-def generate_date_range(days_back=90):
-    """
-    Generate a list of dates for the last N days in YYYY-MM-DD format.
-    
-    Args:
-        days_back: Number of days to go back from today
-        
-    Returns:
-        List of date strings in YYYY-MM-DD format
-    """
-    end_date = datetime.now().date()
-    start_date = end_date - timedelta(days=days_back)
-    
-    date_range = pd.date_range(start=start_date, end=end_date, freq='D')
-    return [date.strftime('%Y-%m-%d') for date in date_range]
 
 # %%
 def fetch_jsonl_data(date_str, base_url="https://archive.analytics.mybinder.org"):
@@ -81,79 +66,180 @@ def fetch_jsonl_data(date_str, base_url="https://archive.analytics.mybinder.org"
         return []
 
 # %%
-def scrape_binder_analytics(days_back=3):
+def load_existing_data(release_url="https://github.com/jupyterhub/binder-data/releases/download/latest/launches.parquet"):
     """
-    Scrape MyBinder analytics data for the last N days and return as DataFrame.
+    Try to load existing data from the latest GitHub release.
+    
+    Returns:
+        DataFrame with existing data, or empty DataFrame if not available
+    """
+    try:
+        print(f"Downloading existing data from: {release_url}")
+        df = pd.read_parquet(release_url)
+        
+        # Ensure timestamp is datetime
+        if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        print(f"✓ Loaded {len(df):,} existing records")
+        print(f"Existing data range: {df['timestamp'].min()} to {df['timestamp'].max()}")
+        return df
+        
+    except Exception as e:
+        print(f"✗ Could not load existing data: {e}")
+        print("Will start fresh...")
+        return pd.DataFrame()
+
+# %%
+def get_available_dates():
+    """
+    Get all available dates from the MyBinder analytics archive webpage.
+    
+    Returns:
+        DataFrame with 'date' column containing available dates
+    """
+    try:
+        print("Fetching available dates from archive webpage...")
+        tables = pd.read_html("https://archive.analytics.mybinder.org/")
+        
+        if not tables:
+            print("No tables found on webpage")
+            return pd.DataFrame()
+        
+        # The first table contains the file listing with dates column
+        files_df = tables[0]
+        
+        # Use the dates column directly and rename it
+        available_df = files_df[['Date']].rename(columns={'Date': 'date'})
+        
+        print(f"✓ Found {len(available_df)} available dates on archive")
+        return available_df
+        
+    except Exception as e:
+        print(f"✗ Could not fetch available dates: {e}")
+        return pd.DataFrame()
+
+def get_missing_dates(existing_df, available_df):
+    """
+    Find dates that are available in the archive but missing from our dataset.
     
     Args:
-        days_back: Number of days to scrape (default: 90)
+        existing_df: DataFrame with existing data (has 'timestamp' column)
+        available_df: DataFrame with available dates (has 'date' column)
         
+    Returns:
+        List of date strings that need to be fetched
+    """
+    if available_df.empty:
+        print("No available dates found")
+        return []
+    
+    if existing_df.empty:
+        print("No existing data - will fetch all available dates")
+        missing_dates = sorted(available_df['date'].tolist())
+    else:
+        # Get dates that exist in our dataset
+        existing_dates = pd.DataFrame({
+            'date': existing_df['timestamp'].dt.strftime('%Y-%m-%d')
+        }).drop_duplicates()
+        
+        # Find missing dates by anti-joining
+        missing_df = available_df[~available_df['date'].isin(existing_dates['date'])]
+        missing_dates = sorted(missing_df['date'].tolist())
+        
+        print(f"Found {len(existing_dates)} unique dates in existing data")
+    
+    print(f"Found {len(missing_dates)} missing dates")
+    if missing_dates:
+        print(f"Date range to fetch: {missing_dates[0]} to {missing_dates[-1]}")
+    
+    return missing_dates
+
+# %%
+def scrape_binder_analytics():
+    """
+    Scrape MyBinder analytics data incrementally - first load existing data,
+    then only fetch missing days based on what's available in the archive.
+    
     Returns:
         pandas DataFrame with all the analytics data
     """
-    print(f"Scraping MyBinder analytics data for the last {days_back} days...")
+    print("Starting incremental data scraping...")
     
-    # Generate date range
-    dates = generate_date_range(days_back)
-    print(f"Will attempt to fetch data for {len(dates)} dates from {dates[0]} to {dates[-1]}")
+    # Step 1: Load existing data from GitHub release
+    existing_df = load_existing_data()
+
+    # Step 2: Get all available dates from the archive webpage
+    available_df = get_available_dates()
     
-    # Collect all data
-    all_data = []
+    # Step 3: Determine which dates we are missing
+    missing_dates = get_missing_dates(existing_df, available_df)
+    
+    if not missing_dates:
+        print("No new data to fetch!")
+        return existing_df
+    
+    print(f"Will fetch {len(missing_dates)} missing dates")
+    
+    # Step 3: Fetch missing data
+    new_data = []
     failed_dates = []
     
-    for i, date_str in enumerate(dates):
+    for i, date_str in enumerate(missing_dates):
         if i > 0 and i % 10 == 0:
-            print(f"Progress: {i}/{len(dates)} dates processed")
+            print(f"Progress: {i}/{len(missing_dates)} dates processed")
             time.sleep(1)  # Be respectful to the server
         
         data = fetch_jsonl_data(date_str)
         if data:
-            # Add date column to each record
-            for record in data:
-                record['fetch_date'] = date_str
-            all_data.extend(data)
+            new_data.extend(data)
         else:
             failed_dates.append(date_str)
     
     print(f"\nScraping complete!")
-    print(f"Successfully fetched: {len(dates) - len(failed_dates)}/{len(dates)} dates")
-    print(f"Total events collected: {len(all_data)}")
+    print(f"Successfully fetched: {len(missing_dates) - len(failed_dates)}/{len(missing_dates)} dates")
+    print(f"New events collected: {len(new_data)}")
     
     if failed_dates:
         print(f"Failed dates: {failed_dates[:10]}{'...' if len(failed_dates) > 10 else ''}")
     
-    # Convert to DataFrame
-    if all_data:
-        df = pd.DataFrame(all_data)
-        print(f"DataFrame shape: {df.shape}")
-        print(f"Columns: {list(df.columns)}")
-        return df
+    # Step 4: Combine existing and new data
+    if new_data:
+        new_df = pd.DataFrame(new_data)
+        # Ensure timestamp is datetime
+        if not pd.api.types.is_datetime64_any_dtype(new_df['timestamp']):
+            new_df['timestamp'] = pd.to_datetime(new_df['timestamp'])
+        
+        print(f"New data shape: {new_df.shape}")
+        
+        if not existing_df.empty:
+            # Combine with existing data
+            combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+            combined_df = combined_df.sort_values('timestamp').reset_index(drop=True)
+            print(f"Combined dataset shape: {combined_df.shape}")
+            print(f"Combined date range: {combined_df['timestamp'].min()} to {combined_df['timestamp'].max()}")
+            return combined_df
+        else:
+            return new_df
     else:
-        print("No data collected - returning empty DataFrame")
-        return pd.DataFrame()
+        print("No new data collected")
+        return existing_df
 
 # %%
 def main():
     """Main function for CLI usage"""
-    parser = argparse.ArgumentParser(description='Scrape MyBinder analytics data')
-    parser.add_argument('--days', type=int, default=90, 
-                       help='Number of days to scrape (default: 90)')
-    
-    # Only parse args if running as script, not in notebook
-    if '__file__' in globals() and len(sys.argv) > 1:
-        args = parser.parse_args()
-        days_back = args.days
-    else:
-        days_back = 3  # Default for notebook usage
-    
-    return scrape_binder_analytics(days_back=days_back)
+    return scrape_binder_analytics()
 
 # Run the scraper
 df = main()
 
 # %%
-# Drop a few columns that don't have useful information
-df = df.drop(columns=["build_token", "schema", "ref", "status", "version", "fetch_date"])
+# Drop a few columns that don't have useful information (if they exist)
+columns_to_drop = ["build_token", "schema", "ref", "status", "version", "fetch_date"]
+existing_columns = [col for col in columns_to_drop if col in df.columns]
+if existing_columns:
+    df = df.drop(columns=existing_columns)
+    print(f"Dropped columns: {existing_columns}")
 
 # %%
 # Save to parquet for efficient storage
