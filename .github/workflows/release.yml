@@ -1,0 +1,40 @@
+name: Generate DB and Create Release
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Run weekly on Sundays at midnight UTC
+  workflow_dispatch: # Allows triggering the workflow manually from the GitHub UI
+
+# Add permissions configuration
+permissions:
+  contents: write  # Required for creating releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      
+      - name: Install dependencies
+        run: |
+          uv pip install -r requirements.txt --system
+
+      - name: Scrape Binder analytics data (2 years)
+        run: python launches/scrape_binder_analytics.py --days 730
+
+      - name: Get current date for release name
+        id: get_date
+        run: echo "RELEASE_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Create Release and Upload Files
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ env.RELEASE_DATE }}
+          tag_name: latest
+          files: _build/*
