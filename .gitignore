@@ -103,5 +103,4 @@ ENV/
 .mypy_cache/
 
 # Ignore raw data
-billing/data/raw/*
-ga/data/ga_raw.csv
+_build

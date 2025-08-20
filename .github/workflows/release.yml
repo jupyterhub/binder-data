@@ -1,0 +1,68 @@
+name: Generate DB and Create Release
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight UTC
+  workflow_dispatch: # Allows triggering the workflow manually from the GitHub UI
+
+# Add permissions configuration
+permissions:
+  contents: write  # Required for creating releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        org: [jupyter, jupyterlab, jupyter-book, jupyter-server, jupyterhub]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Checkout the repository code
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x' # Use your desired Python version
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Install dependencies
+        run: |
+          uv pip install -r requirements.txt --system
+
+      - name: Create data directory
+        run: mkdir -p data # Ensure the data directory exists
+
+      - name: Run database generation script
+        run: python scripts/download_issues.py ${{ matrix.org }} # Execute script with org argument
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }} # Pass PAT as GITHUB_TOKEN to the script
+
+      - name: Upload job outputs as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-${{ matrix.org }}
+          path: data/${{ matrix.org }}.db
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./data
+          merge-multiple: true
+
+      - name: Get current date for release name
+        id: get_date
+        run: echo "RELEASE_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Create Release and Upload Database Files
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ env.RELEASE_DATE }}
+          tag_name: latest
+          files: data/*.db
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
