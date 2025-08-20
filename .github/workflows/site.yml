@@ -48,7 +48,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build MyST site
-        run: myst build --execute --html
+        run: myst build --execute --html -d
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
