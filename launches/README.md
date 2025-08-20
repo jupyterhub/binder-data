@@ -5,7 +5,7 @@ This folder contains data about traffic for the service running at `mybinder.org
 The Python script at `scrape_binder_analytics.py` can be run as a Jupyter Notebook or as a Python script like so:
 
 ```shell
-$ python scrape_binder_analytics.py N_DAYS
+$ python scrape_binder_analytics.py --days N_DAYS
 ```
 
 Where N_DAYS is the number of days in history to pull data.
