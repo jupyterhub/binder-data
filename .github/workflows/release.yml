@@ -31,15 +31,27 @@ jobs:
       - name: Scrape Binder analytics data
         run: python launches/scrape_binder_analytics.py
 
+      - name: Delete existing latest release
+        run: |
+          if [ -f "_build/launches.parquet" ] && [ $(stat -c%s "_build/launches.parquet" 2>/dev/null || stat -f%z "_build/launches.parquet") -gt 1000 ]; then
+            gh release delete latest --yes || echo "No existing latest release to delete"
+          else
+            echo "Parquet file missing or too small, aborting to protect existing data"
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update Release with Latest Data
-        uses: softprops/action-gh-release@v1
-        with:
-          name: MyBinder Analytics Dataset
-          tag_name: latest
-          files: _build/*
-          body: |
-            Latest MyBinder analytics dataset updated on $(date +'%Y-%m-%d %H:%M UTC')
-            
-            This release contains comprehensive MyBinder launch analytics data in parquet format.
-            The data is updated weekly with any missing dates from the archive.
-          prerelease: false
+        run: |
+          CURRENT_DATE=$(date +'%Y-%m-%d')
+          gh release create latest \
+            --title "MyBinder Analytics Dataset" \
+            --notes "Latest MyBinder analytics dataset updated on $CURRENT_DATE
+
+          This release contains comprehensive MyBinder launch analytics data in parquet format.
+          The data is updated weekly with any missing dates from the archive." \
+            --latest \
+            _build/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -40,9 +40,12 @@ def fetch_jsonl_data(date_str, base_url="https://archive.analytics.mybinder.org"
         base_url: Base URL for the analytics archive
         
     Returns:
-        List of JSON objects from the JSONL file
+        List of JSON objects from the JSONL file with unnecessary columns removed
     """
     url = f"{base_url}/events-{date_str}.jsonl"
+    
+    # Columns to drop during fetch to save memory
+    columns_to_drop = {"build_token", "schema", "ref", "status", "version", "fetch_date"}
     
     try:
         response = requests.get(url, timeout=30)
@@ -53,7 +56,10 @@ def fetch_jsonl_data(date_str, base_url="https://archive.analytics.mybinder.org"
         for line in response.text.strip().split('\n'):
             if line.strip():
                 try:
-                    data.append(json.loads(line))
+                    event = json.loads(line)
+                    # Remove unwanted columns during parsing
+                    filtered_event = {k: v for k, v in event.items() if k not in columns_to_drop}
+                    data.append(filtered_event)
                 except json.JSONDecodeError:
                     print(f"Warning: Could not parse line in {date_str}: {line[:100]}")
                     continue
@@ -149,9 +155,7 @@ def get_missing_dates(existing_df, available_df):
         
         print(f"Found {len(existing_dates)} unique dates in existing data")
     
-    print(f"Found {len(missing_dates)} missing dates")
-    if missing_dates:
-        print(f"Date range to fetch: {missing_dates[0]} to {missing_dates[-1]}")
+    print(f"Found {len(missing_dates)} missing dates to fetch")
     
     return missing_dates
 
@@ -195,7 +199,6 @@ def scrape_binder_analytics():
             new_data.extend(data)
         else:
             failed_dates.append(date_str)
-    
     print(f"\nScraping complete!")
     print(f"Successfully fetched: {len(missing_dates) - len(failed_dates)}/{len(missing_dates)} dates")
     print(f"New events collected: {len(new_data)}")
@@ -232,14 +235,6 @@ def main():
 
 # Run the scraper
 df = main()
-
-# %%
-# Drop a few columns that don't have useful information (if they exist)
-columns_to_drop = ["build_token", "schema", "ref", "status", "version", "fetch_date"]
-existing_columns = [col for col in columns_to_drop if col in df.columns]
-if existing_columns:
-    df = df.drop(columns=existing_columns)
-    print(f"Dropped columns: {existing_columns}")
 
 # %%
 # Save to parquet for efficient storage
