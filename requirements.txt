@@ -1,3 +1,5 @@
+# Requirements for downloading data
+# See analysis/requirements.txt for book requirements
 pandas
 requests
 pyarrow

@@ -7,7 +7,7 @@ nox.options.default_venv_backend = "uv"
 @nox.session(name="docs")
 def docs(session):
     """Build the documentation."""
-    session.install("-r", "requirements.txt")
+    session.install("-r", "analysis/requirements.txt")
     session.install("mystmd")
     session.cd("analysis")
     session.run("myst", "build", "--html", "--execute", "-d")
@@ -16,7 +16,15 @@ def docs(session):
 @nox.session(name="docs-live")
 def docs_live(session):
     """Build and serve the documentation with live reload."""
-    session.install("-r", "requirements.txt")
+    session.install("-r", "analysis/requirements.txt")
     session.install("mystmd")
     session.cd("analysis")
     session.run("myst", "start", "--execute")
+
+@nox.session()
+def lab(session):
+    """Launch JupyterLab for interactive notebook editing."""
+    session.install("-r", "analysis/requirements.txt")
+    session.install("jupyterlab")
+    session.cd("analysis")
+    session.run("jupyter", "lab")
