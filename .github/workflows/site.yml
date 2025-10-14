@@ -43,10 +43,10 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install -r requirements.txt
+          pip install nox
 
       - name: Build MyST site
-        run: myst build --execute --html -d
+        run: nox -s docs
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

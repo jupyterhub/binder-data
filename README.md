@@ -3,6 +3,28 @@
 A place to store data for Binder. Analysis / description / etc should be done in other
 repositories so that we can decouple data and code to analyze it!
 
+## Preview the documentation dashboards
+
+Install nox:
+
+```shell
+pip install nox
+```
+
+Build the documentation:
+
+```shell
+nox -s docs
+```
+
+Run a live preview server:
+
+```shell
+nox -s docs-live
+```
+
+## Navigate this repository
+
 `traffic/` contains a Python script to scrape the latest launch data from [archive.analytics.mybinder.org](https://archive.analytics.mybinder.org). It reads and writes from a [Parquet file](https://arrow.apache.org/docs/python/parquet.html) for efficient storage. It is meant to *update a pre-existing datastore* rather than download everything at once in order to save time.
 
 `.github/workflows/release.yml` is a GitHub workflow that regularly runs and scrapes the latest data using the script above, and publishes it as a GitHub release that we can share. It [publishes the data as a GitHub release here](https://github.com/jupyterhub/binder-data/releases/tag/latest).
