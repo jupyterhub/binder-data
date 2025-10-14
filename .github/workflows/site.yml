@@ -43,7 +43,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          uv pip install nox
+          uv tool install nox
 
       - name: Build MyST site
         run: nox -s docs
